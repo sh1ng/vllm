@@ -239,7 +239,7 @@ def main(args: argparse.Namespace):
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    api_url = f"http://{args.host}:{args.port}" if args.backend == "triton" else f"http://{args.host}:{args.port}/generate"
+    api_url = f"http://{args.host}:{args.port}" if args.backend == "triton" else f"http://{args.host}:{args.port}{args.host_path}"
     tokenizer = get_tokenizer(args.tokenizer,
                               trust_remote_code=args.trust_remote_code)
     input_requests = sample_requests(args.dataset, args.num_prompts, tokenizer)
@@ -276,6 +276,7 @@ if __name__ == "__main__":
                         choices=["vllm", "tgi", "triton"])
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--host_path", type=str, default="/generate")
     parser.add_argument("--dataset",
                         type=str,
                         required=True,
