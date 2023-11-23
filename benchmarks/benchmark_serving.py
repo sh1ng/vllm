@@ -163,7 +163,7 @@ async def send_request(
             async def async_request_iterator():
                 try:
                     yield create_request_triton(prompt, False, 1, params,
-                                                "vllm")
+                                                "vllm_model")
                 except Exception as error:
                     print(f"caught error in request iterator:  {error}")
 
@@ -239,7 +239,7 @@ def main(args: argparse.Namespace):
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    api_url = f"http://{args.host}:{args.port}" if args.backend == "triton" else f"http://{args.host}:{args.port}{args.host_path}"
+    api_url = f"{args.host}:{args.port}" if args.backend == "triton" else f"http://{args.host}:{args.port}{args.host_path}"
     tokenizer = get_tokenizer(args.tokenizer,
                               trust_remote_code=args.trust_remote_code)
     input_requests = sample_requests(args.dataset, args.num_prompts, tokenizer)
