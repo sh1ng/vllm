@@ -178,7 +178,7 @@ async def send_request(
                     result, error = response
                     if error:
                         raise error
-                    for chunk in result.as_numpy("TEXT"):
+                    for chunk in result.as_numpy("text_output"):
                         _ = chunk
 
             except InferenceServerException as error:
@@ -194,17 +194,17 @@ def create_request_triton(prompt, stream, request_id, sampling_parameters,
     inputs = []
     prompt_data = np.array([prompt.encode("utf-8")], dtype=np.object_)
     try:
-        inputs.append(grpcclient.InferInput("PROMPT", [1], "BYTES"))
+        inputs.append(grpcclient.InferInput("text_input", [1], "BYTES"))
         inputs[-1].set_data_from_numpy(prompt_data)
     except Exception as e:
         print(f"Encountered an error {e}")
     stream_data = np.array([stream], dtype=bool)
-    inputs.append(grpcclient.InferInput("STREAM", [1], "BOOL"))
+    inputs.append(grpcclient.InferInput("stream", [1], "BOOL"))
     inputs[-1].set_data_from_numpy(stream_data)
 
     # Add requested outputs
     outputs = []
-    outputs.append(grpcclient.InferRequestedOutput("TEXT"))
+    outputs.append(grpcclient.InferRequestedOutput("text_output"))
 
     # Issue the asynchronous sequence inference.
     return {
