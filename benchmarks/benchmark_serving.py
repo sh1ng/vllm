@@ -253,6 +253,12 @@ def main(args: argparse.Namespace):
     print(f"Total time: {benchmark_time:.2f} s")
     print(f"Throughput: {args.num_prompts / benchmark_time:.2f} requests/s")
 
+    total_tokens = np.sum([(prompt_len + output_len)
+                           for prompt_len, output_len, _ in REQUEST_LATENCY])
+
+    total_output_tokens = np.sum(
+        [output_len for _, output_len, _ in REQUEST_LATENCY])
+
     # Compute the latency statistics.
     avg_latency = np.mean([latency for _, _, latency in REQUEST_LATENCY])
     print(f"Average latency: {avg_latency:.2f} s")
@@ -261,10 +267,12 @@ def main(args: argparse.Namespace):
         for prompt_len, output_len, latency in REQUEST_LATENCY
     ])
     print(f"Average latency per token: {avg_per_token_latency:.2f} s")
+    print(f"Average tokens/s: {total_tokens/benchmark_time}")
     avg_per_output_token_latency = np.mean(
         [latency / output_len for _, output_len, latency in REQUEST_LATENCY])
     print("Average latency per output token: "
           f"{avg_per_output_token_latency:.2f} s")
+    print(f"Average output tokens/s: {total_output_tokens/benchmark_time}")
 
 
 if __name__ == "__main__":
