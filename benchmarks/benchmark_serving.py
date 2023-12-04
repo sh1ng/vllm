@@ -138,6 +138,17 @@ async def send_request(
             "max_tokens": str(output_len),
             "ignore_eos": True,
         }
+    elif backend == "tensort":
+        params = {
+            "n": 1,
+            "best_of": best_of,
+            "use_beam_search": use_beam_search,
+            "temperature": "0.0" if use_beam_search else "1.0",
+            "top_p": "1.0",
+            "top_k": 1,
+            "max_tokens": output_len,
+            "ignore_eos": True,
+        }
     else:
         raise ValueError(f"Unknown backend: {backend}")
 
@@ -162,8 +173,36 @@ async def send_request(
 
             async def async_request_iterator():
                 try:
-                    yield create_request_triton(prompt, False, 1, params,
-                                                "vllm_model")
+                    yield create_request_triton_vllm(prompt, False, 1, params,
+                                                     "vllm_model")
+                except Exception as error:
+                    print(f"caught error in request iterator:  {error}")
+
+            try:
+                # Start streaming
+                response_iterator = triton_client.stream_infer(
+                    inputs_iterator=async_request_iterator(),
+                    stream_timeout=None,
+                )
+                # Read response from the stream
+                async for response in response_iterator:
+                    result, error = response
+                    if error:
+                        raise error
+                    for chunk in result.as_numpy("text_output"):
+                        _ = chunk
+
+            except InferenceServerException as error:
+                print(f"caught error in request iterator:  {error}")
+
+    elif backend == "tensort":
+        async with grpcclient.InferenceServerClient(
+                url=api_url) as triton_client:
+
+            async def async_request_iterator():
+                try:
+                    yield create_request_triton_tensortllm(
+                        prompt, params, "ensemble")
                 except Exception as error:
                     print(f"caught error in request iterator:  {error}")
 
@@ -189,8 +228,8 @@ async def send_request(
     REQUEST_LATENCY.append((prompt_len, output_len, request_latency))
 
 
-def create_request_triton(prompt, stream, request_id, sampling_parameters,
-                          model_name):
+def create_request_triton_vllm(prompt, stream, request_id, sampling_parameters,
+                               model_name):
     inputs = []
     prompt_data = np.array([prompt.encode("utf-8")], dtype=np.object_)
     try:
@@ -213,6 +252,62 @@ def create_request_triton(prompt, stream, request_id, sampling_parameters,
         "outputs": outputs,
         "request_id": str(request_id),
         "parameters": sampling_parameters,
+    }
+
+
+def create_request_triton_tensortllm(prompt, sampling_parameters, model_name):
+    inputs = []
+    prompt_data = np.array([[prompt.encode("utf-8")]], dtype=np.object_)
+    # prompt_data = prompt_data.reshape(prompt_data.shape)
+    # print(prompt_data.shape)
+    empty_string_data = np.zeros((1, 1), dtype=np.object_)
+    max_tokens_data = np.array([[sampling_parameters['max_tokens']]],
+                               np.uint32)
+    top_p_data = np.array([[sampling_parameters['top_p']]], np.float32)
+    top_k_data = np.array([[sampling_parameters['top_k']]], np.uint32)
+    temperature_data = np.array([[sampling_parameters['temperature']]],
+                                np.float32)
+    try:
+        inputs.append(grpcclient.InferInput("text_input", [1, 1], "BYTES"))
+        inputs[-1].set_data_from_numpy(prompt_data)
+
+        inputs.append(
+            grpcclient.InferInput("max_tokens", max_tokens_data.shape,
+                                  "UINT32"))
+        inputs[-1].set_data_from_numpy(max_tokens_data)
+
+        inputs.append(
+            grpcclient.InferInput("bad_words", empty_string_data.shape,
+                                  "BYTES"))
+        inputs[-1].set_data_from_numpy(empty_string_data)
+
+        inputs.append(
+            grpcclient.InferInput("stop_words", empty_string_data.shape,
+                                  "BYTES"))
+        inputs[-1].set_data_from_numpy(empty_string_data)
+
+        inputs.append(grpcclient.InferInput("top_p", top_p_data.shape, "FP32"))
+        inputs[-1].set_data_from_numpy(top_p_data)
+
+        inputs.append(
+            grpcclient.InferInput("top_k", top_p_data.shape, "UINT32"))
+        inputs[-1].set_data_from_numpy(top_k_data)
+
+        inputs.append(
+            grpcclient.InferInput("temperature", top_p_data.shape, "FP32"))
+        inputs[-1].set_data_from_numpy(temperature_data)
+    except Exception as e:
+        print(f"Encountered an error {e}")
+
+    # Add requested outputs
+    outputs = []
+    outputs.append(grpcclient.InferRequestedOutput("text_output"))
+
+    # Issue the asynchronous sequence inference.
+    return {
+        "model_name": model_name,
+        "inputs": inputs,
+        "outputs": outputs,
     }
 
 
@@ -239,7 +334,9 @@ def main(args: argparse.Namespace):
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    api_url = f"{args.host}:{args.port}" if args.backend == "triton" else f"http://{args.host}:{args.port}{args.host_path}"
+    api_url = f"{args.host}:{args.port}" if args.backend in [
+        "triton", "tensort"
+    ] else f"http://{args.host}:{args.port}{args.host_path}"
     tokenizer = get_tokenizer(args.tokenizer,
                               trust_remote_code=args.trust_remote_code)
     input_requests = sample_requests(args.dataset, args.num_prompts, tokenizer)
@@ -281,7 +378,7 @@ if __name__ == "__main__":
     parser.add_argument("--backend",
                         type=str,
                         default="vllm",
-                        choices=["vllm", "tgi", "triton"])
+                        choices=["vllm", "tgi", "triton", 'tensort'])
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--host_path", type=str, default="/generate")
