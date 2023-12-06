@@ -262,9 +262,9 @@ def create_request_triton_tensortllm(prompt, sampling_parameters, model_name):
     # print(prompt_data.shape)
     empty_string_data = np.zeros((1, 1), dtype=np.object_)
     max_tokens_data = np.array([[sampling_parameters['max_tokens']]],
-                               np.uint32)
+                               np.int32)
     top_p_data = np.array([[sampling_parameters['top_p']]], np.float32)
-    top_k_data = np.array([[sampling_parameters['top_k']]], np.uint32)
+    top_k_data = np.array([[sampling_parameters['top_k']]], np.int32)
     temperature_data = np.array([[sampling_parameters['temperature']]],
                                 np.float32)
     try:
@@ -273,7 +273,7 @@ def create_request_triton_tensortllm(prompt, sampling_parameters, model_name):
 
         inputs.append(
             grpcclient.InferInput("max_tokens", max_tokens_data.shape,
-                                  "UINT32"))
+                                  "INT32"))
         inputs[-1].set_data_from_numpy(max_tokens_data)
 
         inputs.append(
@@ -290,7 +290,7 @@ def create_request_triton_tensortllm(prompt, sampling_parameters, model_name):
         inputs[-1].set_data_from_numpy(top_p_data)
 
         inputs.append(
-            grpcclient.InferInput("top_k", top_p_data.shape, "UINT32"))
+            grpcclient.InferInput("top_k", top_p_data.shape, "INT32"))
         inputs[-1].set_data_from_numpy(top_k_data)
 
         inputs.append(
