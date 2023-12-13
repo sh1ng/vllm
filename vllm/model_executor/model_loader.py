@@ -97,4 +97,14 @@ def get_model(model_config: ModelConfig) -> nn.Module:
             # Load the weights from the cached or downloaded files.
             model.load_weights(model_config.model, model_config.download_dir,
                                model_config.load_format, model_config.revision)
-    return model.eval()
+    # torch.compiler.reset()
+    print('------------------------')
+    # print(torch.compiler.list_backends())
+    print(model)
+    print(torch._inductor.list_mode_options())
+    print(torch._inductor.list_options())
+    # ['cudagraphs', 'inductor', 'onnxrt', 'openxla', 'openxla_eval', 'tvm']
+    # return model.eval()
+    # return torch.jit.script(model.eval())
+    # print(torch.onnx.is_onnxrt_backend_supported())
+    return torch.compile(model.eval(), fullgraph=False, backend='inductor')
