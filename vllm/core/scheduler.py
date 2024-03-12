@@ -163,7 +163,7 @@ class Scheduler:
         now = time.monotonic()
 
         # Join waiting sequences if possible.
-        if not self.swapped:
+        if len(self.swapped) <= self.scheduler_config.swap_tolerance:
             ignored_seq_groups: List[SequenceGroup] = []
             scheduled: List[SequenceGroup] = []
             # The total number of sequences on the fly, including the
@@ -438,7 +438,8 @@ class Scheduler:
         # TODO(woosuk): Support recomputation for sequence groups with multiple
         # sequences. This may require a more sophisticated CUDA kernel.
         if preemption_mode is None:
-            if seq_group.get_max_num_running_seqs() == 1:
+            if seq_group.get_max_num_running_seqs(
+            ) == 1 and not self.scheduler_config.always_swap:
                 preemption_mode = PreemptionMode.RECOMPUTE
             else:
                 preemption_mode = PreemptionMode.SWAP

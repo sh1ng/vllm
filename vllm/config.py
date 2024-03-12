@@ -464,6 +464,9 @@ class SchedulerConfig:
         max_model_len: Maximum length of a sequence (including prompt
             and generated text).
         max_paddings: Maximum number of paddings to be added to a batch.
+        always_swap: Always swap-in/out sequences not recompute.
+        swap_tolerance: Maximum acceptable number of swapped sequences to start
+            a new waiting request. 0 means to process SWAP first.
     """
 
     def __init__(
@@ -472,6 +475,8 @@ class SchedulerConfig:
         max_num_seqs: int,
         max_model_len: int,
         max_paddings: int,
+        always_swap: bool = False,
+        swap_tolerance: int = 0,
     ) -> None:
         if max_num_batched_tokens is not None:
             self.max_num_batched_tokens = max_num_batched_tokens
@@ -482,6 +487,8 @@ class SchedulerConfig:
         self.max_num_seqs = max_num_seqs
         self.max_model_len = max_model_len
         self.max_paddings = max_paddings
+        self.always_swap = always_swap
+        self.swap_tolerance = swap_tolerance
         self._verify_args()
 
     def _verify_args(self) -> None:

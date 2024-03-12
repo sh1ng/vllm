@@ -31,6 +31,8 @@ class EngineArgs:
     max_num_batched_tokens: Optional[int] = None
     max_num_seqs: int = 256
     max_paddings: int = 256
+    scheduler_always_swap: bool = False
+    scheduler_swap_tolerance: int = 0
     max_logprobs: int = 5  # OpenAI default value
     disable_log_stats: bool = False
     revision: Optional[str] = None
@@ -213,6 +215,16 @@ class EngineArgs:
                             type=int,
                             default=EngineArgs.max_paddings,
                             help='maximum number of paddings in a batch')
+        parser.add_argument('--scheduler-always-swap',
+                            type=bool,
+                            default=EngineArgs.scheduler_always_swap,
+                            help='Always swap-in/out sequences not recompute')
+        parser.add_argument(
+            '--scheduler-swap-tolerance',
+            type=int,
+            default=EngineArgs.scheduler_swap_tolerance,
+            help='Maximum acceptable number of swapped sequences to start a '
+            'new waiting request')
         parser.add_argument(
             '--max-logprobs',
             type=int,
@@ -323,7 +335,9 @@ class EngineArgs:
         scheduler_config = SchedulerConfig(self.max_num_batched_tokens,
                                            self.max_num_seqs,
                                            model_config.max_model_len,
-                                           self.max_paddings)
+                                           self.max_paddings,
+                                           self.scheduler_always_swap,
+                                           self.scheduler_swap_tolerance)
         lora_config = LoRAConfig(
             max_lora_rank=self.max_lora_rank,
             max_loras=self.max_loras,
