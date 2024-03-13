@@ -150,7 +150,7 @@ class Scheduler:
         blocks_to_copy: Dict[int, List[int]] = {}
 
         # Join waiting sequences if possible.
-        if not self.swapped:
+        if len(self.swapped) <= self.scheduler_config.swap_tolerance:
             ignored_seq_groups: List[SequenceGroup] = []
             scheduled: List[SequenceGroup] = []
             # The total number of sequences on the fly, including the

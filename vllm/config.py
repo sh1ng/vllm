@@ -459,6 +459,8 @@ class SchedulerConfig:
         max_paddings: Maximum number of paddings to be added to a batch.
         policy: Policy of sequence scheduling(`fcfs` or `reorder`).
         reorder_window: Allowed reorder window size(in sec) for `reorder` policy.
+        swap_tolerance: Maximum acceptable number of swapped sequences to start
+            a new waiting request. 0 means to process SWAP first.
     """
 
     def __init__(
@@ -469,6 +471,7 @@ class SchedulerConfig:
         max_paddings: int,
         policy: str = 'fcfs',
         reorder_window: float = 0,
+        swap_tolerance: int = 0,
     ) -> None:
         if max_num_batched_tokens is not None:
             self.max_num_batched_tokens = max_num_batched_tokens
@@ -481,6 +484,7 @@ class SchedulerConfig:
         self.max_paddings = max_paddings
         self.policy = policy
         self.reorder_window = reorder_window
+        self.swap_tolerance = swap_tolerance
         self._verify_args()
 
     def _verify_args(self) -> None:
@@ -504,6 +508,7 @@ class SchedulerConfig:
             raise ValueError(
                 f"fcfs policy doesn't support reorder_window ({self.reorder_window})."
             )
+        assert self.swap_tolerance >= 0
 
 
 class DeviceConfig:
